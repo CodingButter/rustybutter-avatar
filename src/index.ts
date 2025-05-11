@@ -2,6 +2,9 @@ import express from 'express';
 import path from 'path';
 import cors from 'cors';
 import fs from 'fs';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
 
 // Define expression interface
 interface Expression {
@@ -284,7 +287,109 @@ app.listen(PORT, () => {
   console.log(`Use OBS Browser Source to display avatar at: http://localhost:${PORT}`);
 });
 
-// Export the MCP tool
+// Initialize MCP server
+const mcpServer = new McpServer({
+  name: "RustyButterAvatar",
+  version: "1.0.1",
+});
+
+// Define the setAvatarExpression tool
+mcpServer.tool(
+  "setAvatarExpression",
+  {
+    name: z.string().describe("Expression name (one of the available avatar expressions)"),
+    direction: z.enum(["right", "left"]).optional().describe("Direction the avatar is facing ('right' or 'left')"),
+    posX: z.number().optional().describe("Horizontal position offset in pixels"),
+    posY: z.number().optional().describe("Vertical position offset in pixels"),
+    rotation: z.number().optional().describe("Rotation angle in degrees (-30 to 30) for leaning effect"),
+    scale: z.number().optional().describe("Scale factor for avatar size (0.1 to 3.0, where 1.0 is 100%)")
+  },
+  async ({ name, direction, posX, posY, rotation, scale }) => {
+    console.error(`[MCP Debug] setAvatarExpression called with: name=${name}, direction=${direction}, posX=${posX}, posY=${posY}, rotation=${rotation}, scale=${scale}`);
+
+    if (!expressionMap[name]) {
+      console.error(`[MCP Error] Invalid expression: ${name}. Available expressions: ${Object.keys(expressionMap).join(', ')}`);
+      return {
+        content: [{
+          type: "text",
+          text: `Invalid expression: ${name}. Available expressions: ${Object.keys(expressionMap).join(', ')}`
+        }]
+      };
+    }
+
+    // Update expression
+    console.error(`[MCP Debug] Changing expression from ${currentExpression} to ${name}`);
+    currentExpression = name;
+
+    // Update direction if provided and valid
+    if (direction === 'left' || direction === 'right') {
+      console.error(`[MCP Debug] Setting direction to ${direction}`);
+      avatarState.direction = direction;
+    }
+
+    // Update position if provided
+    if (posX !== undefined) {
+      console.error(`[MCP Debug] Setting posX to ${posX}`);
+      avatarState.posX = posX;
+    }
+
+    if (posY !== undefined) {
+      console.error(`[MCP Debug] Setting posY to ${posY}`);
+      avatarState.posY = posY;
+    }
+
+    // Update rotation if provided
+    if (rotation !== undefined) {
+      // Limit rotation to a reasonable range (-30 to 30 degrees)
+      const limitedRotation = Math.max(-30, Math.min(30, rotation));
+      console.error(`[MCP Debug] Setting rotation to ${limitedRotation} (original value: ${rotation})`);
+      avatarState.rotation = limitedRotation;
+    }
+
+    // Update scale if provided
+    if (scale !== undefined) {
+      // Limit scale to reasonable values (0.1 to 3.0)
+      const limitedScale = Math.max(0.1, Math.min(3.0, scale));
+      console.error(`[MCP Debug] Setting scale to ${limitedScale} (original value: ${scale})`);
+      avatarState.scale = limitedScale;
+    }
+
+    console.error(`[MCP Debug] Final avatar state: ${JSON.stringify(avatarState)}`);
+
+    return {
+      content: [{
+        type: "text",
+        text: `Avatar expression set to ${name}`
+      }]
+    };
+  }
+);
+
+// Instead of using resource, let's add another tool for listing expressions
+mcpServer.tool(
+  "listAvatarExpressions",
+  {}, // No parameters needed
+  async () => {
+    const expressionList = Object.keys(expressionMap).join(', ');
+    console.error(`[MCP Debug] listAvatarExpressions called, returning: ${expressionList}`);
+    return {
+      content: [{
+        type: "text",
+        text: `Available expressions: ${expressionList}`
+      }]
+    };
+  }
+);
+
+// Connect the MCP server
+const transport = new StdioServerTransport();
+mcpServer.connect(transport).then(() => {
+  console.error(`[MCP] Server connected and ready for AI tool calls`);
+}).catch(err => {
+  console.error(`[MCP Error] Failed to connect MCP server: ${err}`);
+});
+
+// For backward compatibility with older MCP implementations
 export const mcpTools = {
   setAvatarExpression: {
     description: "Change the avatar's facial expression, direction, position, rotation, and scale",
