@@ -1,84 +1,178 @@
-# Turborepo starter
+# RustyButter Avatar
 
-This Turborepo starter is maintained by the Turborepo core team.
+A local avatar expression controller for OBS (Open Broadcaster Software) that allows an avatar to change expressions programmatically, typically controlled by a Large Language Model (LLM) using the Model Context Protocol (MCP).
 
-## Using this example
+## System Components
 
-Run the following command:
+1. **Express Server**: Node.js server that serves avatar images and handles expression changes
+2. **Avatar Web Page**: HTML/JS page displaying the current avatar expression
+3. **OBS Browser Source**: Displays the avatar web page in OBS
+4. **MCP Integration**: Allows LLMs to change the avatar's expression
 
-```sh
-npx create-turbo@latest
+## Setup
+
+### Prerequisites
+
+- Node.js (v14 or newer)
+- npm (Node package manager)
+- OBS (Open Broadcaster Software)
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/rustybutter-avatar.git
+   cd rustybutter-avatar
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Build the project:
+   ```bash
+   npm run build
+   ```
+
+4. Start the server:
+   ```bash
+   npm start
+   ```
+
+## Usage
+
+### Adding Avatar Images
+
+Place your avatar expression images in the `public/images` directory. The system will load expressions from the `public/expressions.json` file, which contains an array of expression objects with the following structure:
+
+```json
+{
+  "name": "expression_name",
+  "imageUrl": "/images/expression_name.png",
+  "description": "Description of the expression",
+  "useCases": "When to use this expression"
+}
 ```
 
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm build
+To add a new expression:
+1. Add your expression image to `public/images/` (e.g., `new_expression.png`)
+2. Edit `public/expressions.json` to add your new expression:
+```json
+{
+  "name": "new_expression",
+  "imageUrl": "/images/new_expression.png",
+  "description": "Description of your new expression",
+  "useCases": "When to use this expression"
+}
 ```
 
-### Develop
+No changes to the server code are needed, as expressions are loaded dynamically from the JSON file.
 
-To develop all apps and packages, run the following command:
+### Setting Up OBS
 
-```
-cd my-turborepo
-pnpm dev
-```
+1. Open OBS
+2. Add a new "Browser" source
+3. Set the URL to `http://localhost:3000` (or the configured port)
+4. Set a suitable width and height
+5. Check "Refresh browser when scene becomes active"
 
-### Remote Caching
+### Testing Expressions
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+You can test different expressions by accessing the following URL in your browser:
 
 ```
-cd my-turborepo
-npx turbo login
+http://localhost:3000/api/set-expression?name=joyful
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+Replace `joyful` with any expression name defined in the expressions.json file.
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+The set-expression endpoint also supports additional parameters:
+
+- `direction` - Either "right" (default) or "left" to flip the avatar horizontally
+- `pos_x` - Horizontal position offset in pixels (can be negative)
+- `pos_y` - Vertical position offset in pixels (can be negative)
+- `rotation` - Rotation angle in degrees, from -30 to 30, to make the avatar lean (positive values lean right, negative values lean left)
+- `scale` - Scale factor to resize the avatar (0.1 to 3.0, where 1.0 is 100% size, 0.5 is 50% size, etc.)
+
+Example with all parameters:
+```
+http://localhost:3000/api/set-expression?name=mind-blown&direction=left&pos_x=-20&pos_y=15&rotation=-15&scale=0.5
+```
+
+You can also view all available expressions at:
 
 ```
-npx turbo link
+http://localhost:3000/api/expressions
 ```
 
-## Useful Links
+This will return a JSON array of all available expressions with their details.
 
-Learn more about the power of Turborepo:
+### MCP Integration
 
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+The system exports an MCP tool called `setAvatarExpression` which allows LLMs that support MCP to control the avatar's expression. It supports the following parameters:
+
+- `name` (required) - The expression name to display
+- `direction` (optional) - Either "right" or "left" to control which way the avatar faces
+- `posX` (optional) - Horizontal position offset in pixels
+- `posY` (optional) - Vertical position offset in pixels
+- `rotation` (optional) - Rotation angle in degrees (-30 to 30) to make the avatar lean
+- `scale` (optional) - Scale factor for avatar size (0.1 to 3.0, where 1.0 is 100% size)
+
+Example MCP call:
+```javascript
+// Change expression, face left, lean slightly, and scale to 50% size
+await mcp.invoke("setAvatarExpression", {
+  name: "sipping_coffee",
+  direction: "left",
+  posX: 10,
+  posY: -5,
+  rotation: -10,
+  scale: 0.5
+});
+```
+
+#### Testing API Integration
+
+A test script is included to help you test the API integration that LLMs would use. To use it:
+
+1. First make sure the server is running (either in a separate terminal or in the background):
+   ```bash
+   npm start
+   ```
+
+2. In another terminal, run the test script:
+   ```bash
+   npm run test:mcp
+   ```
+
+The test script provides an interactive command line interface where you can:
+- Set the avatar expression with all parameters: `set <expression> [direction] [posX] [posY] [rotation] [scale]`
+- List all available expressions: `list`
+- Get help: `help`
+- Exit the script: `exit`
+
+Example commands:
+```
+set joyful
+set perplexed left 10 -5 15 0.75
+set sipping_coffee right 0 0 -10 0.5
+```
+
+## Development
+
+- Run in development mode (detached with logging): `npm run dev`
+- Stop the development server: `npm run dev:stop`
+- View logs in the `rustybutter.log` file
+- Build for production: `npm run build`
+
+## Customization
+
+- To add new expressions, simply edit the `expressions.json` file and add your new expressions as described above.
+- Modify the HTML/CSS in `public/index.html` to adjust the avatar's appearance.
+- The polling interval (how often the page checks for expression updates) can be adjusted in the script section of `public/index.html`.
+- Press the 'D' key when the page is active to toggle debug mode, which shows the current expression name and description.
+
+## License
+
+ISC

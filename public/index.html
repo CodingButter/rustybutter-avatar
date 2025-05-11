@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avatar Display</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: transparent;
+        }
+        #avatar-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #avatar-wrapper {
+            position: relative;
+            /* We'll handle the floating separately */
+            transform-origin: bottom center;
+            transition: all 0.3s ease;
+        }
+        #avatar-image {
+            max-width: 100%;
+            max-height: 100%;
+            filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.4));
+            transition: transform 0.3s ease;
+        }
+        #expression-info {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            display: none; /* Hidden by default */
+        }
+        /* Floating animation */
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-15px);
+            }
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        /* Hide scrollbars but allow scrolling */
+        body {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;     /* Firefox */
+        }
+        body::-webkit-scrollbar {
+            display: none;            /* Chrome, Safari, Opera */
+        }
+    </style>
+</head>
+<body>
+    <div id="avatar-container">
+        <div id="avatar-wrapper">
+            <img id="avatar-image" src="" alt="Avatar">
+        </div>
+    </div>
+
+    <div id="expression-info">
+        <div id="expression-name"></div>
+        <div id="expression-description"></div>
+        <div id="avatar-position"></div>
+    </div>
+
+    <script>
+        // Debug mode - set to true to see expression info
+        const DEBUG_MODE = false;
+
+        // Function to fetch the current expression and update the image
+        async function updateAvatar() {
+            try {
+                const response = await fetch('/api/current-expression');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch current expression');
+                }
+                
+                const data = await response.json();
+                
+                // Add timestamp to prevent caching in OBS
+                const timestamp = Date.now();
+                const imgElement = document.getElementById('avatar-image');
+                imgElement.src = `${data.imageUrl}?t=${timestamp}`;
+                imgElement.alt = data.name;
+                
+                // Get the wrapper element
+                const wrapper = document.getElementById('avatar-wrapper');
+
+                // Store the latest data for animation use
+                wrapper.dataset.direction = data.direction || 'right';
+                wrapper.dataset.rotation = data.rotation || '0';
+                wrapper.dataset.scale = data.scale || '1.0';
+
+                // Apply direction (flipping)
+                if (data.direction === 'left') {
+                    imgElement.style.transform = 'scaleX(-1)';
+                } else {
+                    imgElement.style.transform = 'scaleX(1)';
+                }
+
+                // Apply position offsets
+                if (data.posX !== undefined && data.posY !== undefined) {
+                    wrapper.style.marginLeft = `${data.posX}px`;
+                    wrapper.style.marginTop = `${data.posY}px`;
+                }
+
+                // Global animation function (defined only once)
+                if (!window.animationStarted) {
+                    window.animationStarted = true;
+
+                    // Create global animation function
+                    function animateAvatar() {
+                        const wrapper = document.getElementById('avatar-wrapper');
+                        const time = Date.now() / 1000;
+
+                        // Simple sine wave for smooth floating (amplitude of 10px, period of 4 seconds)
+                        const floatOffset = Math.sin(time * Math.PI / 2) * 10;
+
+                        // Get the current parameters from the dataset (updated by API calls)
+                        const rotation = parseFloat(wrapper.dataset.rotation || '0');
+                        const scale = parseFloat(wrapper.dataset.scale || '1.0');
+
+                        // Apply rotation, floating, and scaling
+                        wrapper.style.transform = `translateY(${floatOffset}px) rotate(${rotation}deg) scale(${scale})`;
+
+                        // Continue animation
+                        requestAnimationFrame(animateAvatar);
+                    }
+
+                    // Start the animation loop
+                    animateAvatar();
+                }
+                
+                // Update debug info if needed
+                if (DEBUG_MODE) {
+                    document.getElementById('expression-info').style.display = 'block';
+                    document.getElementById('expression-name').textContent = `Expression: ${data.name}`;
+                    document.getElementById('expression-description').textContent = `Description: ${data.description}`;
+                    document.getElementById('avatar-position').textContent = `Direction: ${data.direction}, X: ${data.posX}px, Y: ${data.posY}px, Rotation: ${data.rotation}°, Scale: ${data.scale || 1.0}x`;
+                }
+                
+                console.log('Avatar updated:', data);
+            } catch (error) {
+                console.error('Error updating avatar:', error);
+            }
+        }
+
+        // Initial load
+        updateAvatar();
+
+        // Poll for updates every 1 second
+        setInterval(updateAvatar, 1000);
+
+        // Keyboard shortcut for toggling debug info
+        document.addEventListener('keydown', function(event) {
+            // Press 'D' key to toggle debug info
+            if (event.key === 'd' || event.key === 'D') {
+                const infoElement = document.getElementById('expression-info');
+                if (infoElement.style.display === 'none') {
+                    infoElement.style.display = 'block';
+                } else {
+                    infoElement.style.display = 'none';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
