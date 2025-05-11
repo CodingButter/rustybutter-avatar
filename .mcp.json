@@ -3,7 +3,7 @@
     "rustybutter-avatar": {
       "type": "stdio",
       "command": "node",
-      "args": ["./mcp-server.js"],
+      "args": ["./bin/cli.js", "--mcp"],
       "env": {}
     }
   }

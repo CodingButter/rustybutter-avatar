@@ -36,6 +36,8 @@ const isMcpMode = opts.mcp || process.env.MCP_MODE === 'true' || process.env.MCP
 // If in MCP mode, directly run the server without UI
 if (isMcpMode) {
   console.error('[MCP] Starting in MCP server mode');
+  // Make sure to pass MCP flag to the server
+  process.argv.push('--mcp');
   // Execute the main server file directly
   require(mainFile);
   // Exit the CLI script
@@ -115,7 +117,12 @@ function actuallyStartServer() {
   if (opts.detached) {
     // Run in detached mode
     const logStream = fs.openSync(opts.log, 'a');
-    serverProcess = spawn('node', [mainFile, '--port', opts.port], {
+    // Prepare arguments - include MCP flag if needed
+    const args = [mainFile, '--port', opts.port];
+    if (opts.mcp) {
+      args.push('--mcp');
+    }
+    serverProcess = spawn('node', args, {
       detached: true,
       stdio: ['ignore', logStream, logStream]
     });
@@ -132,7 +139,12 @@ function actuallyStartServer() {
     console.log(chalk.blue(`  - To stop the server: `) + chalk.yellow('npx rustybutter-avatar --stop'));
   } else {
     // Run in foreground mode
-    serverProcess = spawn('node', [mainFile, '--port', opts.port], {
+    // Prepare arguments - include MCP flag if needed
+    const args = [mainFile, '--port', opts.port];
+    if (opts.mcp) {
+      args.push('--mcp');
+    }
+    serverProcess = spawn('node', args, {
       stdio: 'inherit'
     });
     

@@ -8,9 +8,7 @@ const express_1 = __importDefault(require("express"));
 const path_1 = __importDefault(require("path"));
 const cors_1 = __importDefault(require("cors"));
 const fs_1 = __importDefault(require("fs"));
-const mcp_js_1 = require("@modelcontextprotocol/sdk/server/mcp.js");
-const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
-const zod_1 = require("zod");
+const mcp_server_1 = require("./mcp-server");
 // Parse command line arguments
 function parseArgs() {
     const args = process.argv.slice(2);
@@ -20,10 +18,14 @@ function parseArgs() {
             options.port = args[i + 1];
             i++;
         }
+        if (args[i] === '--mcp') {
+            options.mcp = 'true';
+        }
     }
     return options;
 }
 const options = parseArgs();
+const isMcpMode = options.mcp === 'true' || process.env.MCP_MODE === 'true';
 // Create Express server
 const app = (0, express_1.default)();
 const PORT = options.port || process.env.PORT || 3000;
@@ -70,6 +72,14 @@ let avatarState = {
     posY: 0, // vertical offset in pixels
     rotation: 0, // rotation in degrees
     scale: 1.0 // scale factor (1.0 = 100%, 0.5 = 50%, etc.)
+};
+// Callback for MCP to update our state
+const handleExpressionUpdate = (name, state) => {
+    if (expressionMap[name]) {
+        currentExpression = name;
+        avatarState = { ...state };
+        console.error(`[Express] Expression updated via MCP to: ${name}, state: ${JSON.stringify(avatarState)}`);
+    }
 };
 // API endpoint to get current expression
 app.get('/api/current-expression', (req, res) => {
@@ -180,158 +190,33 @@ app.get('/api/expressions', (req, res) => {
     console.error(`[API Debug] Expression names: ${expressions.map(e => e.name).join(', ')}`);
     res.json(expressions);
 });
-// MCP tool for setting avatar expression
-const setAvatarExpression = async (name, direction, posX, posY, rotation, scale) => {
-    console.error(`[MCP Debug] setAvatarExpression called with: name=${name}, direction=${direction}, posX=${posX}, posY=${posY}, rotation=${rotation}, scale=${scale}`);
-    if (!expressionMap[name]) {
-        console.error(`[MCP Error] Invalid expression: ${name}. Available expressions: ${Object.keys(expressionMap).join(', ')}`);
-        throw new Error(`Invalid expression: ${name}. Available expressions: ${Object.keys(expressionMap).join(', ')}`);
-    }
-    // Update expression
-    console.error(`[MCP Debug] Changing expression from ${currentExpression} to ${name}`);
-    currentExpression = name;
-    // Update direction if provided and valid
-    if (direction === 'left' || direction === 'right') {
-        console.error(`[MCP Debug] Setting direction to ${direction}`);
-        avatarState.direction = direction;
-    }
-    // Update position if provided
-    if (posX !== undefined) {
-        console.error(`[MCP Debug] Setting posX to ${posX}`);
-        avatarState.posX = posX;
-    }
-    if (posY !== undefined) {
-        console.error(`[MCP Debug] Setting posY to ${posY}`);
-        avatarState.posY = posY;
-    }
-    // Update rotation if provided
-    if (rotation !== undefined) {
-        // Limit rotation to a reasonable range (-30 to 30 degrees)
-        const limitedRotation = Math.max(-30, Math.min(30, rotation));
-        console.error(`[MCP Debug] Setting rotation to ${limitedRotation} (original value: ${rotation})`);
-        avatarState.rotation = limitedRotation;
-    }
-    // Update scale if provided
-    if (scale !== undefined) {
-        // Limit scale to reasonable values (0.1 to 3.0)
-        const limitedScale = Math.max(0.1, Math.min(3.0, scale));
-        console.error(`[MCP Debug] Setting scale to ${limitedScale} (original value: ${scale})`);
-        avatarState.scale = limitedScale;
-    }
-    console.error(`[MCP Debug] Final avatar state: ${JSON.stringify(avatarState)}`);
-    return {
-        success: true,
-        message: `Avatar expression set to ${name}`,
-        expression: expressionMap[name],
-        direction: avatarState.direction,
-        posX: avatarState.posX,
-        posY: avatarState.posY,
-        rotation: avatarState.rotation,
-        scale: avatarState.scale
-    };
-};
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(`[Server Error] ${err.stack || err.message || err}`);
     res.status(500).json({ error: 'Server error', message: err.message });
 });
-// Start the server
+// Start the Express server
 app.listen(PORT, () => {
     console.error(`[Server] RustyButter Avatar Server started`);
     console.error(`[Server] Server running at http://localhost:${PORT}`);
     console.error(`[Server] Available expressions: ${Object.keys(expressionMap).join(', ')}`);
     console.error(`[Server] Default expression: ${currentExpression}`);
     console.error(`[Server] Avatar state: ${JSON.stringify(avatarState)}`);
-    console.error(`[Server] MCP tool registered: setAvatarExpression`);
     console.error(`[Server] Use OBS Browser Source to display avatar at: http://localhost:${PORT}`);
     console.log(`Server running at http://localhost:${PORT}`);
     console.log(`Available expressions: ${Object.keys(expressionMap).join(', ')}`);
     console.log(`Default expression: ${currentExpression}`);
     console.log(`Use OBS Browser Source to display avatar at: http://localhost:${PORT}`);
+    // Start the MCP server after the Express server is running
+    if (isMcpMode) {
+        console.error('[Server] Starting MCP server in same process...');
+        (0, mcp_server_1.startMcpServer)(expressions, expressionMap, handleExpressionUpdate);
+    }
+    else {
+        console.error('[Server] MCP server not started (use --mcp flag to enable)');
+    }
 });
-// Initialize MCP server
-const mcpServer = new mcp_js_1.McpServer({
-    name: "RustyButterAvatar",
-    version: "1.0.1",
-});
-// Define the setAvatarExpression tool
-mcpServer.tool("setAvatarExpression", {
-    name: zod_1.z.string().describe("Expression name (one of the available avatar expressions)"),
-    direction: zod_1.z.enum(["right", "left"]).optional().describe("Direction the avatar is facing ('right' or 'left')"),
-    posX: zod_1.z.number().optional().describe("Horizontal position offset in pixels"),
-    posY: zod_1.z.number().optional().describe("Vertical position offset in pixels"),
-    rotation: zod_1.z.number().optional().describe("Rotation angle in degrees (-30 to 30) for leaning effect"),
-    scale: zod_1.z.number().optional().describe("Scale factor for avatar size (0.1 to 3.0, where 1.0 is 100%)")
-}, async ({ name, direction, posX, posY, rotation, scale }) => {
-    console.error(`[MCP Debug] setAvatarExpression called with: name=${name}, direction=${direction}, posX=${posX}, posY=${posY}, rotation=${rotation}, scale=${scale}`);
-    if (!expressionMap[name]) {
-        console.error(`[MCP Error] Invalid expression: ${name}. Available expressions: ${Object.keys(expressionMap).join(', ')}`);
-        return {
-            content: [{
-                    type: "text",
-                    text: `Invalid expression: ${name}. Available expressions: ${Object.keys(expressionMap).join(', ')}`
-                }]
-        };
-    }
-    // Update expression
-    console.error(`[MCP Debug] Changing expression from ${currentExpression} to ${name}`);
-    currentExpression = name;
-    // Update direction if provided and valid
-    if (direction === 'left' || direction === 'right') {
-        console.error(`[MCP Debug] Setting direction to ${direction}`);
-        avatarState.direction = direction;
-    }
-    // Update position if provided
-    if (posX !== undefined) {
-        console.error(`[MCP Debug] Setting posX to ${posX}`);
-        avatarState.posX = posX;
-    }
-    if (posY !== undefined) {
-        console.error(`[MCP Debug] Setting posY to ${posY}`);
-        avatarState.posY = posY;
-    }
-    // Update rotation if provided
-    if (rotation !== undefined) {
-        // Limit rotation to a reasonable range (-30 to 30 degrees)
-        const limitedRotation = Math.max(-30, Math.min(30, rotation));
-        console.error(`[MCP Debug] Setting rotation to ${limitedRotation} (original value: ${rotation})`);
-        avatarState.rotation = limitedRotation;
-    }
-    // Update scale if provided
-    if (scale !== undefined) {
-        // Limit scale to reasonable values (0.1 to 3.0)
-        const limitedScale = Math.max(0.1, Math.min(3.0, scale));
-        console.error(`[MCP Debug] Setting scale to ${limitedScale} (original value: ${scale})`);
-        avatarState.scale = limitedScale;
-    }
-    console.error(`[MCP Debug] Final avatar state: ${JSON.stringify(avatarState)}`);
-    return {
-        content: [{
-                type: "text",
-                text: `Avatar expression set to ${name}`
-            }]
-    };
-});
-// Instead of using resource, let's add another tool for listing expressions
-mcpServer.tool("listAvatarExpressions", {}, // No parameters needed
-async () => {
-    const expressionList = Object.keys(expressionMap).join(', ');
-    console.error(`[MCP Debug] listAvatarExpressions called, returning: ${expressionList}`);
-    return {
-        content: [{
-                type: "text",
-                text: `Available expressions: ${expressionList}`
-            }]
-    };
-});
-// Connect the MCP server
-const transport = new stdio_js_1.StdioServerTransport();
-mcpServer.connect(transport).then(() => {
-    console.error(`[MCP] Server connected and ready for AI tool calls`);
-}).catch(err => {
-    console.error(`[MCP Error] Failed to connect MCP server: ${err}`);
-});
-// For backward compatibility with older MCP implementations
+// Legacy MCP tools export for backward compatibility
 exports.mcpTools = {
     setAvatarExpression: {
         description: "Change the avatar's facial expression, direction, position, rotation, and scale",
@@ -368,6 +253,44 @@ exports.mcpTools = {
                 optional: true
             }
         },
-        function: setAvatarExpression
+        function: async (name, direction, posX, posY, rotation, scale) => {
+            console.error(`[Legacy MCP] setAvatarExpression called with: name=${name}, direction=${direction}, posX=${posX}, posY=${posY}, rotation=${rotation}, scale=${scale}`);
+            if (!expressionMap[name]) {
+                throw new Error(`Invalid expression: ${name}. Available expressions: ${Object.keys(expressionMap).join(', ')}`);
+            }
+            // Update expression
+            currentExpression = name;
+            // Update direction if provided and valid
+            if (direction === 'left' || direction === 'right') {
+                avatarState.direction = direction;
+            }
+            // Update position if provided
+            if (posX !== undefined) {
+                avatarState.posX = posX;
+            }
+            if (posY !== undefined) {
+                avatarState.posY = posY;
+            }
+            // Update rotation if provided
+            if (rotation !== undefined) {
+                // Limit rotation to a reasonable range (-30 to 30 degrees)
+                avatarState.rotation = Math.max(-30, Math.min(30, rotation));
+            }
+            // Update scale if provided
+            if (scale !== undefined) {
+                // Limit scale to reasonable values (0.1 to 3.0)
+                avatarState.scale = Math.max(0.1, Math.min(3.0, scale));
+            }
+            return {
+                success: true,
+                message: `Avatar expression set to ${name}`,
+                expression: expressionMap[name],
+                direction: avatarState.direction,
+                posX: avatarState.posX,
+                posY: avatarState.posY,
+                rotation: avatarState.rotation,
+                scale: avatarState.scale
+            };
+        }
     }
 };
