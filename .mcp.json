@@ -2,11 +2,9 @@
   "mcpServers": {
     "rustybutter-avatar": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["rustybutter-avatar", "--mcp"],
-      "env": {
-        "MCP_MODE": "true"
-      }
+      "command": "node",
+      "args": ["./mcp-server.js"],
+      "env": {}
     }
   }
 }
