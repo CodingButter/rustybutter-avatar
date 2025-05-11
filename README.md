@@ -27,6 +27,8 @@ You can run RustyButter Avatar directly without installation:
 npx rustybutter-avatar
 ```
 
+> Note: The package is available on npm at https://www.npmjs.com/package/rustybutter-avatar
+
 For more options, see the "Using NPX" section below.
 
 #### Option 2: Manual Installation
