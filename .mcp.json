@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "rustybutter avatar": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/home/codingbutter/GitHub/rustybutter-avatar/bin/cli.js"],
+      "env": {}
+    }
+  }
+}
