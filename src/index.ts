@@ -11,9 +11,26 @@ interface Expression {
   useCases: string;
 }
 
+// Parse command line arguments
+function parseArgs() {
+  const args = process.argv.slice(2);
+  const options: { [key: string]: string } = {};
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--port' && i + 1 < args.length) {
+      options.port = args[i + 1];
+      i++;
+    }
+  }
+
+  return options;
+}
+
+const options = parseArgs();
+
 // Create Express server
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = options.port || process.env.PORT || 3000;
 
 // Enable CORS
 app.use(cors());
@@ -206,6 +223,7 @@ app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
   console.log(`Available expressions: ${Object.keys(expressionMap).join(', ')}`);
   console.log(`Default expression: ${currentExpression}`);
+  console.log(`Use OBS Browser Source to display avatar at: http://localhost:${PORT}`);
 });
 
 // Export the MCP tool

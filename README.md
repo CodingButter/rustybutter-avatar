@@ -19,9 +19,21 @@ A local avatar expression controller for OBS (Open Broadcaster Software) that al
 
 ### Installation
 
+#### Option 1: Using NPX (Recommended)
+
+You can run RustyButter Avatar directly without installation:
+
+```bash
+npx rustybutter-avatar
+```
+
+For more options, see the "Using NPX" section below.
+
+#### Option 2: Manual Installation
+
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/rustybutter-avatar.git
+   git clone https://github.com/CodingButter/rustybutter-avatar.git
    cd rustybutter-avatar
    ```
 
@@ -40,7 +52,47 @@ A local avatar expression controller for OBS (Open Broadcaster Software) that al
    npm start
    ```
 
+You can also install the package globally:
+
+```bash
+npm install -g rustybutter-avatar
+rustybutter-avatar
+```
+
 ## Usage
+
+### Using NPX
+
+You can run RustyButter Avatar directly with npx without installation:
+
+```bash
+npx rustybutter-avatar
+```
+
+The command supports several options:
+
+```bash
+npx rustybutter-avatar --help
+```
+
+Options:
+- `-p, --port <number>` - Port to run the server on (default: 3000)
+- `-d, --detached` - Run the server in detached mode (background)
+- `-l, --log <file>` - Specify a log file path (default: rustybutter.log)
+- `-s, --stop` - Stop a running detached server
+- `-v, --version` - Display version information
+
+Examples:
+```bash
+# Run on port 8080
+npx rustybutter-avatar --port 8080
+
+# Run in background mode
+npx rustybutter-avatar --detached
+
+# Stop a running detached server
+npx rustybutter-avatar --stop
+```
 
 ### Adding Avatar Images
 
