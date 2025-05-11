@@ -1,0 +1,17 @@
+# Git and GitHub files
+.git
+.github
+.gitignore
+GITHUB_SETUP.md
+
+# Source TypeScript files (as they are compiled to dist/)
+src/
+
+# Development files
+tsconfig.json
+rustybutter.log
+Project Overview.md
+.claude/
+.pid
+
+# Only include necessary files for npm package
