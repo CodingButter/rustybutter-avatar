@@ -2,8 +2,8 @@
   "mcpServers": {
     "rustybutter-avatar": {
       "type": "stdio",
-      "command": "node",
-      "args": ["/home/codingbutter/GitHub/rustybutter-avatar/bin/cli.js", "--mcp"],
+      "command": "npx",
+      "args": ["rustybutter-avatar", "--mcp"],
       "env": {
         "MCP_MODE": "true"
       }
