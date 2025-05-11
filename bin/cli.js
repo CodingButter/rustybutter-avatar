@@ -19,13 +19,30 @@ program
   .option('-p, --port <number>', 'Port to run the server on', '3000')
   .option('-d, --detached', 'Run the server in detached mode', false)
   .option('-l, --log <file>', 'Log file path', 'rustybutter.log')
-  .option('-s, --stop', 'Stop the running server', false);
+  .option('-s, --stop', 'Stop the running server', false)
+  .option('-m, --mcp', 'Run in MCP server mode (for LLM integration)', false);
 
 program.parse(process.argv);
 
 const opts = program.opts();
 
-// Display welcome message
+// Find the server file and pidFile
+const mainFile = path.resolve(__dirname, '../dist/index.js');
+const pidFile = path.resolve(process.cwd(), '.pid');
+
+// Check if running as MCP server
+const isMcpMode = opts.mcp || process.env.MCP_MODE === 'true' || process.env.MCP === 'true';
+
+// If in MCP mode, directly run the server without UI
+if (isMcpMode) {
+  console.error('[MCP] Starting in MCP server mode');
+  // Execute the main server file directly
+  require(mainFile);
+  // Exit the CLI script
+  return;
+}
+
+// For normal mode, display welcome message
 console.log(boxen(
   chalk.bold.cyan('RustyButter Avatar') + '\n' +
   chalk.dim('OBS Avatar Expression Controller with MCP Integration for LLMs') + '\n\n' +
@@ -37,10 +54,6 @@ console.log(boxen(
     borderColor: 'cyan'
   }
 ));
-
-// Find the server file
-const mainFile = path.resolve(__dirname, '../dist/index.js');
-const pidFile = path.resolve(process.cwd(), '.pid');
 
 // Function to stop the server
 function stopServer() {
