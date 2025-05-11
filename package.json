@@ -1,6 +1,6 @@
 {
   "name": "rustybutter-avatar",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Avatar expression controller for OBS with MCP integration for LLMs",
   "main": "dist/index.js",
   "bin": {
