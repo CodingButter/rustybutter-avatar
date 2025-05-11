@@ -16,3 +16,17 @@ export interface AvatarState {
   rotation: number;
   scale: number;
 }
+
+// Expression action interface for batch expressions
+export interface ExpressionAction extends AvatarState {
+  expression: string;
+  duration: number; // Duration in milliseconds
+}
+
+// Batch expressions interface
+export interface BatchExpressions {
+  loop: boolean;
+  random?: boolean; // Flag to indicate if the expressions should be played in random order
+  actions: ExpressionAction[];
+  batchId: string; // Unique identifier for the batch
+}

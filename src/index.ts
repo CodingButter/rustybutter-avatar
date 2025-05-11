@@ -2,8 +2,9 @@ import express from 'express';
 import path from 'path';
 import cors from 'cors';
 import fs from 'fs';
-import { Expression, AvatarState } from './types';
+import { Expression, AvatarState, BatchExpressions } from './types';
 import { startMcpServer } from './mcp-server';
+import { v4 as uuidv4 } from 'uuid';
 
 // Parse command line arguments
 function parseArgs() {
@@ -80,12 +81,77 @@ let avatarState: AvatarState = {
   scale: 1.0         // scale factor (1.0 = 100%, 0.5 = 50%, etc.)
 };
 
+// Store the batch expressions state
+let batchExpressionsState: BatchExpressions | null = null;
+
 // Callback for MCP to update our state
 const handleExpressionUpdate = (name: string, state: AvatarState) => {
   if (expressionMap[name]) {
+    // Clear batch expressions when setting a single expression
+    batchExpressionsState = null;
+
     currentExpression = name;
     avatarState = { ...state };
     console.error(`[Express] Expression updated via MCP to: ${name}, state: ${JSON.stringify(avatarState)}`);
+  }
+};
+
+// Callback for MCP to update batch expressions
+const handleBatchExpressionsUpdate = (batchExpressions: BatchExpressions) => {
+  console.error(`[Express] Batch expressions updated via MCP: ${JSON.stringify(batchExpressions)}`);
+
+  // Validate expressions in the batch
+  const validActions = batchExpressions.actions.filter(action => {
+    const isValid = expressionMap[action.expression] !== undefined;
+    if (!isValid) {
+      console.error(`[Express] Invalid expression in batch: ${action.expression}`);
+    }
+    return isValid;
+  });
+
+  if (validActions.length === 0) {
+    console.error('[Express] No valid expressions in batch, ignoring update');
+    return;
+  }
+
+  if (validActions.length !== batchExpressions.actions.length) {
+    console.error(`[Express] Some expressions in batch were invalid and filtered out (${batchExpressions.actions.length - validActions.length})`);
+    batchExpressions.actions = validActions;
+  }
+
+  // If there's only one action and not looping, just use regular expression update
+  if (validActions.length === 1 && !batchExpressions.loop) {
+    const action = validActions[0];
+    currentExpression = action.expression;
+    avatarState = {
+      direction: action.direction,
+      posX: action.posX,
+      posY: action.posY,
+      rotation: action.rotation,
+      scale: action.scale
+    };
+    batchExpressionsState = null;
+    console.error(`[Express] Single action batch converted to regular expression: ${action.expression}`);
+  } else {
+    // Otherwise, store the batch expressions
+    batchExpressionsState = {
+      ...batchExpressions,
+      random: batchExpressions.random || false, // Default to false if not provided
+      batchId: batchExpressions.batchId || uuidv4() // Generate a new ID if not provided
+    };
+
+    // Set initial expression
+    if (validActions.length > 0) {
+      const firstAction = validActions[0];
+      currentExpression = firstAction.expression;
+      avatarState = {
+        direction: firstAction.direction,
+        posX: firstAction.posX,
+        posY: firstAction.posY,
+        rotation: firstAction.rotation,
+        scale: firstAction.scale
+      };
+    }
   }
 };
 
@@ -98,6 +164,7 @@ app.get('/api/current-expression', (req, res) => {
     return res.status(404).json({ error: 'Expression not found' });
   }
 
+  // Basic response with current expression
   const response = {
     ...expressionMap[currentExpression],
     direction: avatarState.direction,
@@ -106,6 +173,20 @@ app.get('/api/current-expression', (req, res) => {
     rotation: avatarState.rotation,
     scale: avatarState.scale
   };
+
+  // Add batch expressions if available
+  if (batchExpressionsState) {
+    const batchResponse = {
+      ...response,
+      batchExpressions: {
+        ...batchExpressionsState,
+        // Explicitly include the random property to ensure it's in the response
+        random: batchExpressionsState.random || false
+      }
+    };
+    console.error(`[API Debug] Returning expression with batch: ${JSON.stringify(batchResponse)}`);
+    return res.json(batchResponse);
+  }
 
   console.error(`[API Debug] Returning expression: ${JSON.stringify(response)}`);
   res.json(response);
@@ -232,7 +313,7 @@ app.listen(PORT, () => {
   // Start the MCP server after the Express server is running
   if (isMcpMode) {
     console.error('[Server] Starting MCP server in same process...');
-    startMcpServer(expressions, expressionMap, handleExpressionUpdate);
+    startMcpServer(expressions, expressionMap, handleExpressionUpdate, handleBatchExpressionsUpdate);
   } else {
     console.error('[Server] MCP server not started (use --mcp flag to enable)');
   }
@@ -277,40 +358,43 @@ export const mcpTools = {
     },
     function: async (name: string, direction?: string, posX?: number, posY?: number, rotation?: number, scale?: number) => {
       console.error(`[Legacy MCP] setAvatarExpression called with: name=${name}, direction=${direction}, posX=${posX}, posY=${posY}, rotation=${rotation}, scale=${scale}`);
-      
+
       if (!expressionMap[name]) {
         throw new Error(`Invalid expression: ${name}. Available expressions: ${Object.keys(expressionMap).join(', ')}`);
       }
-    
+
       // Update expression
       currentExpression = name;
-    
+
       // Update direction if provided and valid
       if (direction === 'left' || direction === 'right') {
         avatarState.direction = direction;
       }
-    
+
       // Update position if provided
       if (posX !== undefined) {
         avatarState.posX = posX;
       }
-    
+
       if (posY !== undefined) {
         avatarState.posY = posY;
       }
-    
+
       // Update rotation if provided
       if (rotation !== undefined) {
         // Limit rotation to a reasonable range (-30 to 30 degrees)
         avatarState.rotation = Math.max(-30, Math.min(30, rotation));
       }
-    
+
       // Update scale if provided
       if (scale !== undefined) {
         // Limit scale to reasonable values (0.1 to 3.0)
         avatarState.scale = Math.max(0.1, Math.min(3.0, scale));
       }
-    
+
+      // Clear any batch expressions
+      batchExpressionsState = null;
+
       return {
         success: true,
         message: `Avatar expression set to ${name}`,
@@ -320,6 +404,114 @@ export const mcpTools = {
         posY: avatarState.posY,
         rotation: avatarState.rotation,
         scale: avatarState.scale
+      };
+    }
+  },
+
+  setBatchExpressions: {
+    description: "Set a sequence of expressions with durations that can optionally loop and randomize",
+    parameters: {
+      loop: {
+        type: "boolean",
+        description: "Whether to loop through the expressions sequence"
+      },
+      random: {
+        type: "boolean",
+        description: "Whether to randomize the order of expressions after each loop",
+        optional: true
+      },
+      actions: {
+        type: "array",
+        description: "Array of expression actions with durations",
+        items: {
+          type: "object",
+          properties: {
+            expression: {
+              type: "string",
+              description: "Expression name (one of the available avatar expressions)",
+              enum: Object.keys(expressionMap)
+            },
+            duration: {
+              type: "number",
+              description: "Duration to display this expression in milliseconds"
+            },
+            direction: {
+              type: "string",
+              description: "Direction the avatar is facing ('right' or 'left')",
+              enum: ["right", "left"],
+              optional: true
+            },
+            posX: {
+              type: "number",
+              description: "Horizontal position offset in pixels",
+              optional: true
+            },
+            posY: {
+              type: "number",
+              description: "Vertical position offset in pixels",
+              optional: true
+            },
+            rotation: {
+              type: "number",
+              description: "Rotation angle in degrees (-30 to 30) for leaning effect",
+              optional: true
+            },
+            scale: {
+              type: "number",
+              description: "Scale factor for avatar size (0.1 to 3.0, where 1.0 is 100%)",
+              optional: true
+            }
+          },
+          required: ["expression", "duration"]
+        }
+      }
+    },
+    function: async (loop: boolean, random: boolean | undefined, actions: Array<any>) => {
+      console.error(`[Legacy MCP] setBatchExpressions called with: loop=${loop}, random=${random}, actions=${JSON.stringify(actions)}`);
+
+      if (!Array.isArray(actions) || actions.length === 0) {
+        throw new Error('Actions array is required and must contain at least one expression action');
+      }
+
+      // Validate and prepare actions
+      const validActions = actions.map(action => {
+        if (!action.expression || !expressionMap[action.expression]) {
+          throw new Error(`Invalid expression: ${action.expression}. Available expressions: ${Object.keys(expressionMap).join(', ')}`);
+        }
+
+        if (typeof action.duration !== 'number' || action.duration <= 0) {
+          throw new Error(`Duration must be a positive number for expression: ${action.expression}`);
+        }
+
+        // Apply defaults and constraints
+        const validAction = {
+          expression: action.expression,
+          duration: action.duration,
+          direction: (action.direction === 'left' || action.direction === 'right') ? action.direction : 'right',
+          posX: action.posX || 0,
+          posY: action.posY || 0,
+          rotation: action.rotation !== undefined ? Math.max(-30, Math.min(30, action.rotation)) : 0,
+          scale: action.scale !== undefined ? Math.max(0.1, Math.min(3.0, action.scale)) : 1.0
+        };
+
+        return validAction;
+      });
+
+      // Create batch expressions object
+      const batchExpressions: BatchExpressions = {
+        loop,
+        random: random || false, // Default to false if not provided
+        actions: validActions,
+        batchId: uuidv4()
+      };
+
+      // Update batch expressions state
+      handleBatchExpressionsUpdate(batchExpressions);
+
+      return {
+        success: true,
+        message: `Batch expressions set with ${validActions.length} actions, loop=${loop}`,
+        batchId: batchExpressions.batchId
       };
     }
   }
