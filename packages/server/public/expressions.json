@@ -64,5 +64,11 @@
     "imageUrl": "/images/worried.png",
     "description": "Showing concern and unease",
     "useCases": "When facing potential security issues or bugs in production"
+  },
+  {
+    "name": "evil",
+    "imageUrl": "/images/evil.png",
+    "description": "Mischievous and devious expression",
+    "useCases": "When discussing clever hacks, sneaky solutions, or playful troublemaking"
   }
 ]

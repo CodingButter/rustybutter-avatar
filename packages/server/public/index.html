@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -82,7 +82,7 @@
 
     <script>
       // Debug mode - set to true to see expression info
-      const DEBUG_MODE = false
+      const DEBUG_MODE = false;
 
       // Batch expression state
       let currentBatch = null;
@@ -93,120 +93,120 @@
       // Function to fetch the current expression and update the image
       async function updateAvatar() {
         try {
-          const response = await fetch("/api/current-expression")
+          const response = await fetch('/api/current-expression');
           if (!response.ok) {
-            throw new Error("Failed to fetch current expression")
+            throw new Error('Failed to fetch current expression');
           }
 
-          const data = await response.json()
+          const data = await response.json();
 
           // Check if we have batch expressions
           if (data.batchExpressions) {
             // If it's a new batch (different batchId), start it
             if (currentBatchId !== data.batchExpressions.batchId) {
-              console.log("New batch expressions received:", data.batchExpressions)
-              startBatchExpression(data.batchExpressions)
+              console.log('New batch expressions received:', data.batchExpressions);
+              startBatchExpression(data.batchExpressions);
             }
             // If it's the same batch, do nothing (batch animation is already running)
-            return
+            return;
           } else {
             // Clear any existing batch animation if we're switching to a single expression
-            stopBatchExpression()
+            stopBatchExpression();
           }
 
           // Handle single expression update
-          updateSingleExpression(data)
+          updateSingleExpression(data);
         } catch (error) {
-          console.error("Error updating avatar:", error)
+          console.error('Error updating avatar:', error);
         }
       }
 
       // Function to handle a single expression update
       function updateSingleExpression(data) {
         // Add timestamp to prevent caching in OBS
-        const timestamp = Date.now()
-        const imgElement = document.getElementById("avatar-image")
-        imgElement.src = `${data.imageUrl}?t=${timestamp}`
-        imgElement.alt = data.name
+        const timestamp = Date.now();
+        const imgElement = document.getElementById('avatar-image');
+        imgElement.src = `${data.imageUrl}?t=${timestamp}`;
+        imgElement.alt = data.name;
 
         // Get the wrapper element
-        const wrapper = document.getElementById("avatar-wrapper")
+        const wrapper = document.getElementById('avatar-wrapper');
 
         // Store the latest data for animation use
-        wrapper.dataset.direction = data.direction || "right"
-        wrapper.dataset.rotation = data.rotation || "0"
-        wrapper.dataset.scale = data.scale || "1.0"
+        wrapper.dataset.direction = data.direction || 'right';
+        wrapper.dataset.rotation = data.rotation || '0';
+        wrapper.dataset.scale = data.scale || '1.0';
 
         // Apply direction (flipping)
-        if (data.direction === "left") {
-          imgElement.style.transform = "scaleX(-1)"
+        if (data.direction === 'left') {
+          imgElement.style.transform = 'scaleX(-1)';
         } else {
-          imgElement.style.transform = "scaleX(1)"
+          imgElement.style.transform = 'scaleX(1)';
         }
 
         // Apply position offsets
         if (data.posX !== undefined && data.posY !== undefined) {
-          wrapper.style.marginLeft = `${data.posX}px`
-          wrapper.style.marginTop = `${data.posY}px`
+          wrapper.style.marginLeft = `${data.posX}px`;
+          wrapper.style.marginTop = `${data.posY}px`;
         }
 
         // Update debug info if needed
-        updateDebugInfo(data)
+        updateDebugInfo(data);
       }
 
       // Start processing batch expressions
       function startBatchExpression(batchData) {
         // Clear any existing batch animation
-        stopBatchExpression()
+        stopBatchExpression();
 
         // Store the new batch
-        currentBatch = batchData
-        currentBatchId = batchData.batchId
-        currentActionIndex = 0
+        currentBatch = batchData;
+        currentBatchId = batchData.batchId;
+        currentActionIndex = 0;
 
         // Process the first action immediately
-        processBatchAction()
+        processBatchAction();
       }
 
       // Stop batch expression animation
       function stopBatchExpression() {
         if (batchTimeout) {
-          clearTimeout(batchTimeout)
-          batchTimeout = null
+          clearTimeout(batchTimeout);
+          batchTimeout = null;
         }
-        currentBatch = null
-        currentBatchId = null
-        currentActionIndex = 0
+        currentBatch = null;
+        currentBatchId = null;
+        currentActionIndex = 0;
       }
 
       // Process a single action in the batch
       function processBatchAction() {
         if (!currentBatch || !currentBatch.actions || currentBatch.actions.length === 0) {
-          return
+          return;
         }
 
         // Get the current action
-        const action = currentBatch.actions[currentActionIndex]
+        const action = currentBatch.actions[currentActionIndex];
 
         // Create a data object mimicking the single expression format
         const expressionData = {
           name: action.expression,
           imageUrl: `/images/${action.expression}.png`,
-          description: "Batch expression", // Placeholder
-          direction: action.direction || "right",
+          description: 'Batch expression', // Placeholder
+          direction: action.direction || 'right',
           posX: action.posX || 0,
           posY: action.posY || 0,
           rotation: action.rotation || 0,
-          scale: action.scale || 1.0
-        }
+          scale: action.scale || 1.0,
+        };
 
         // Update the expression
-        updateSingleExpression(expressionData)
+        updateSingleExpression(expressionData);
 
         // Schedule the next action
         batchTimeout = setTimeout(() => {
           // Move to the next action
-          currentActionIndex++
+          currentActionIndex++;
 
           // If we've reached the end of the actions...
           if (currentActionIndex >= currentBatch.actions.length) {
@@ -215,97 +215,98 @@
               // If random is enabled, shuffle the actions array
               if (currentBatch.random) {
                 // Create a shuffled copy of the actions array
-                const shuffledActions = [...currentBatch.actions].sort(() => Math.random() - 0.5)
+                const shuffledActions = [...currentBatch.actions].sort(() => Math.random() - 0.5);
                 // Replace the actions with the shuffled version
-                currentBatch.actions = shuffledActions
-                console.log("Randomized batch actions for next loop")
+                currentBatch.actions = shuffledActions;
+                console.log('Randomized batch actions for next loop');
               }
-              currentActionIndex = 0
-              processBatchAction()
+              currentActionIndex = 0;
+              processBatchAction();
             } else {
               // Otherwise, stop the batch animation
-              currentBatch = null
-              currentBatchId = null
+              currentBatch = null;
+              currentBatchId = null;
             }
           } else {
             // Process the next action
-            processBatchAction()
+            processBatchAction();
           }
-        }, action.duration)
+        }, action.duration);
       }
 
       // Function to update debug info
       function updateDebugInfo(data) {
-        if (!DEBUG_MODE) return
+        if (!DEBUG_MODE) return;
 
-        document.getElementById("expression-info").style.display = "block"
-        document.getElementById("expression-name").textContent = `Expression: ${data.name}`
+        document.getElementById('expression-info').style.display = 'block';
+        document.getElementById('expression-name').textContent = `Expression: ${data.name}`;
 
         if (data.description) {
-          document.getElementById("expression-description").textContent = `Description: ${data.description}`
+          document.getElementById('expression-description').textContent =
+            `Description: ${data.description}`;
         }
 
-        let positionText = `Direction: ${data.direction}, X: ${data.posX}px, Y: ${data.posY}px, Rotation: ${data.rotation}°, Scale: ${data.scale || 1.0}x`
+        let positionText = `Direction: ${data.direction}, X: ${data.posX}px, Y: ${data.posY}px, Rotation: ${data.rotation}°, Scale: ${data.scale || 1.0}x`;
 
         // Add batch info if applicable
         if (currentBatch) {
-          const randomText = currentBatch.random ? ', Random' : ''
-          positionText += ` | Batch: ${currentActionIndex + 1}/${currentBatch.actions.length} (${currentBatch.loop ? 'Loop' : 'Once'}${randomText})`
+          const randomText = currentBatch.random ? ', Random' : '';
+          positionText += ` | Batch: ${currentActionIndex + 1}/${currentBatch.actions.length} (${currentBatch.loop ? 'Loop' : 'Once'}${randomText})`;
         }
 
-        document.getElementById("avatar-position").textContent = positionText
+        document.getElementById('avatar-position').textContent = positionText;
       }
 
       // Set up the floating animation
       function setupFloatingAnimation() {
         if (!window.animationStarted) {
-          window.animationStarted = true
+          window.animationStarted = true;
 
           // Create global animation function
           function animateAvatar() {
-            const wrapper = document.getElementById("avatar-wrapper")
-            const time = Date.now() / 1000
+            const wrapper = document.getElementById('avatar-wrapper');
+            const time = Date.now() / 1000;
 
             // Simple sine wave for smooth floating (amplitude of 10px, period of 4 seconds)
-            const floatOffset = Math.sin((time * Math.PI) / 2) * 10
+            const floatOffset = Math.sin((time * Math.PI) / 2) * 10;
 
             // Get the current parameters from the dataset (updated by API calls)
-            const rotation = parseFloat(wrapper.dataset.rotation || "0")
-            const scale = parseFloat(wrapper.dataset.scale || "1.0")
+            const rotation = parseFloat(wrapper.dataset.rotation || '0');
+            const scale = parseFloat(wrapper.dataset.scale || '1.0');
 
             // Apply rotation, floating, and scaling (maintaining the default 0.5 scale)
-            wrapper.style.transform = `translateY(${floatOffset}px) rotate(${rotation}deg) scale(${scale * 0.5})`
+            wrapper.style.transform = `translateY(${floatOffset}px) rotate(${rotation}deg) scale(${scale * 0.5})`;
 
             // Continue animation
-            requestAnimationFrame(animateAvatar)
+            requestAnimationFrame(animateAvatar);
           }
 
           // Start the animation loop
-          animateAvatar()
+          animateAvatar();
         }
       }
 
       // Set up the floating animation
-      setupFloatingAnimation()
+      setupFloatingAnimation();
 
       // Initial load
-      updateAvatar()
+      updateAvatar();
 
       // Poll for updates every 1 second
-      setInterval(updateAvatar, 1000)
+      setInterval(updateAvatar, 1000);
 
       // Keyboard shortcut for toggling debug info
-      document.addEventListener("keydown", function (event) {
+      document.addEventListener('keydown', function (event) {
         // Press 'D' key to toggle debug info
-        if (event.key === "d" || event.key === "D") {
-          const infoElement = document.getElementById("expression-info")
-          if (infoElement.style.display === "none") {
-            infoElement.style.display = "block"
+        if (event.key === 'd' || event.key === 'D') {
+          const infoElement = document.getElementById('expression-info');
+          if (infoElement.style.display === 'none') {
+            infoElement.style.display = 'block';
           } else {
-            infoElement.style.display = "none"
+            infoElement.style.display = 'none';
           }
         }
-      })
+      });
     </script>
   </body>
 </html>

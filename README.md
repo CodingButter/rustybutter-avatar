@@ -2,12 +2,43 @@
 
 A local avatar expression controller for OBS (Open Broadcaster Software) that allows an avatar to change expressions programmatically, typically controlled by a Large Language Model (LLM) using the Model Context Protocol (MCP).
 
-## System Components
+## Architecture
 
-1. **Express Server**: Node.js server that serves avatar images and handles expression changes
-2. **Avatar Web Page**: HTML/JS page displaying the current avatar expression
-3. **OBS Browser Source**: Displays the avatar web page in OBS
-4. **MCP Integration**: Allows LLMs to change the avatar's expression
+The RustyButter Avatar system follows a clean separation of responsibilities:
+
+### Components
+
+1. **HTTP Server** (`server.ts`) - Manages avatar state and serves the web client
+   - Runs independently on port 3000 (configurable)
+   - Manages avatar expression state
+   - Provides REST API endpoints:
+     - `GET /api/current-expression` - Get current avatar state (polled by client)
+     - `POST /api/set-expression` - Set single expression
+     - `POST /api/set-batch-expressions` - Set animated sequence
+     - `GET /api/expressions` - List all available expressions
+     - `GET /api/status` - Server health check
+
+2. **MCP Server** (`mcp-server-standalone.ts`) - Provides LLM tools via Model Context Protocol
+   - Connects to LLMs via stdio transport
+   - Makes HTTP requests to the HTTP server
+   - Provides MCP tools:
+     - `setAvatarExpression` - Change avatar expression
+     - `listAvatarExpressions` - List available expressions
+     - `setBatchExpressions` - Set animation sequence
+     - `getAvatarStatus` - Check server status
+
+3. **Web Client** (`public/index.html`) - Displays avatar in OBS by polling the HTTP server
+   - Polls `/api/current-expression` every 100ms
+   - Updates avatar image based on response
+   - Handles batch expressions with timing
+
+### Benefits of This Architecture
+
+1. **Independence** - HTTP server can run without MCP
+2. **Scalability** - Multiple MCP servers can connect to one HTTP server
+3. **Testing** - Easier to test components independently
+4. **Deployment** - Can deploy HTTP server and MCP server separately
+5. **Security** - MCP server doesn't need direct file system access
 
 ## Setup
 
@@ -34,17 +65,20 @@ For more options, see the "Using NPX" section below.
 #### Option 2: Manual Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/CodingButter/rustybutter-avatar.git
    cd rustybutter-avatar
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Build the project:
+
    ```bash
    npm run build
    ```
@@ -59,6 +93,46 @@ You can also install the package globally:
 ```bash
 npm install -g rustybutter-avatar
 rustybutter-avatar
+```
+
+### Running the System
+
+#### Start HTTP Server
+```bash
+# Using npm script
+npm run server
+
+# Or using binary
+rustybutter-avatar-server
+
+# Or directly
+node dist/index.js
+```
+
+#### Start MCP Server (for LLM integration)
+```bash
+# Using npm script
+npm run mcp
+
+# Or using binary with --mcp flag
+rustybutter-avatar-mcp
+
+# Or directly
+node dist/index.js --mcp
+```
+
+#### Environment Variables
+- `AVATAR_SERVER_PORT` - HTTP server port (default: 3000)
+- `AVATAR_SERVER_HOST` - HTTP server hostname for MCP (default: localhost)
+
+#### All-in-One Mode
+The main CLI provides a user-friendly interface:
+```bash
+# HTTP server mode (default)
+rustybutter-avatar
+
+# MCP server mode
+rustybutter-avatar --mcp
 ```
 
 ## Usage
@@ -78,6 +152,7 @@ npx rustybutter-avatar --help
 ```
 
 Options:
+
 - `-p, --port <number>` - Port to run the server on (default: 3000)
 - `-d, --detached` - Run the server in detached mode (background)
 - `-l, --log <file>` - Specify a log file path (default: rustybutter.log)
@@ -85,6 +160,7 @@ Options:
 - `-v, --version` - Display version information
 
 Examples:
+
 ```bash
 # Run on port 8080
 npx rustybutter-avatar --port 8080
@@ -110,8 +186,10 @@ Place your avatar expression images in the `public/images` directory. The system
 ```
 
 To add a new expression:
+
 1. Add your expression image to `public/images/` (e.g., `new_expression.png`)
 2. Edit `public/expressions.json` to add your new expression:
+
 ```json
 {
   "name": "new_expression",
@@ -150,6 +228,7 @@ The set-expression endpoint also supports additional parameters:
 - `scale` - Scale factor to resize the avatar (0.1 to 3.0, where 1.0 is 100% size, 0.5 is 50% size, etc.)
 
 Example with all parameters:
+
 ```
 http://localhost:3000/api/set-expression?name=mind-blown&direction=left&pos_x=-20&pos_y=15&rotation=-15&scale=0.5
 ```
@@ -174,15 +253,16 @@ The system exports an MCP tool called `setAvatarExpression` which allows LLMs th
 - `scale` (optional) - Scale factor for avatar size (0.1 to 3.0, where 1.0 is 100% size)
 
 Example MCP call:
+
 ```javascript
 // Change expression, face left, lean slightly, and scale to 50% size
-await mcp.invoke("setAvatarExpression", {
-  name: "sipping_coffee",
-  direction: "left",
+await mcp.invoke('setAvatarExpression', {
+  name: 'sipping_coffee',
+  direction: 'left',
   posX: 10,
   posY: -5,
   rotation: -10,
-  scale: 0.5
+  scale: 0.5,
 });
 ```
 
@@ -191,6 +271,7 @@ await mcp.invoke("setAvatarExpression", {
 A test script is included to help you test the API integration that LLMs would use. To use it:
 
 1. First make sure the server is running (either in a separate terminal or in the background):
+
    ```bash
    npm start
    ```
@@ -201,12 +282,14 @@ A test script is included to help you test the API integration that LLMs would u
    ```
 
 The test script provides an interactive command line interface where you can:
+
 - Set the avatar expression with all parameters: `set <expression> [direction] [posX] [posY] [rotation] [scale]`
 - List all available expressions: `list`
 - Get help: `help`
 - Exit the script: `exit`
 
 Example commands:
+
 ```
 set joyful
 set perplexed left 10 -5 15 0.75
