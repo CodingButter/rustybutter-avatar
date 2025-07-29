@@ -1,13 +1,13 @@
 /**
  * @fileoverview Standalone MCP Server for RustyButter Avatar
- * 
+ *
  * This module implements a standalone MCP server that communicates with
  * the HTTP server via REST API calls. This provides a clean separation
  * of concerns between the MCP protocol handling and the avatar state management.
- * 
+ *
  * The MCP server acts as a bridge between LLMs and the avatar
  * HTTP server, translating MCP tool calls into HTTP API requests.
- * 
+ *
  * @author CodingButter
  * @version 1.0.5
  */
@@ -27,7 +27,7 @@ const SERVER_CONFIG = {
   port: process.env.AVATAR_SERVER_PORT || '8080',
   get baseUrl() {
     return `http://${this.host}:${this.port}`;
-  }
+  },
 };
 
 /**
@@ -46,10 +46,10 @@ async function startHttpServer(): Promise<void> {
 
   const serverPath = join(__dirname, '../../server/dist/index.js');
   console.error(`[MCP] Starting HTTP server at: ${serverPath}`);
-  
+
   httpServerProcess = spawn('node', [serverPath], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    detached: false
+    detached: false,
   });
 
   httpServerProcess.stdout?.on('data', (data) => {
@@ -66,7 +66,7 @@ async function startHttpServer(): Promise<void> {
   });
 
   // Wait a moment for the server to start
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 }
 
 /**
@@ -91,10 +91,10 @@ async function waitForHttpServer(maxAttempts = 10): Promise<boolean> {
         console.error('[MCP] HTTP server is ready');
         return true;
       }
-    } catch (error) {
+    } catch {
       // Server not ready yet
     }
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   console.error('[MCP] HTTP server failed to start within timeout');
   return false;
@@ -102,7 +102,7 @@ async function waitForHttpServer(maxAttempts = 10): Promise<boolean> {
 
 /**
  * Makes an HTTP request to the avatar server.
- * 
+ *
  * @async
  * @function makeRequest
  * @param {string} endpoint - API endpoint path
@@ -113,7 +113,7 @@ async function waitForHttpServer(maxAttempts = 10): Promise<boolean> {
  */
 async function makeRequest(endpoint: string, method: string = 'GET', body?: any): Promise<any> {
   const url = `${SERVER_CONFIG.baseUrl}${endpoint}`;
-  
+
   try {
     const options: RequestInit = {
       method,
@@ -127,10 +127,12 @@ async function makeRequest(endpoint: string, method: string = 'GET', body?: any)
     }
 
     const response = await fetch(url, options);
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error((errorData as any).error || `HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(
+        (errorData as any).error || `HTTP ${response.status}: ${response.statusText}`
+      );
     }
 
     return await response.json();
@@ -142,12 +144,12 @@ async function makeRequest(endpoint: string, method: string = 'GET', body?: any)
 
 /**
  * Initialize and start the standalone MCP server.
- * 
+ *
  * This server provides MCP tools that translate to HTTP API calls:
  * - setAvatarExpression: Changes avatar expression via POST /api/set-expression
  * - listAvatarExpressions: Lists expressions via GET /api/expressions
  * - setBatchExpressions: Sets animation sequence via POST /api/set-batch-expressions
- * 
+ *
  * @function startMcpServer
  * @returns {void}
  */
@@ -157,7 +159,7 @@ export async function startMcpServer() {
 
   // Start the HTTP server automatically
   await startHttpServer();
-  
+
   // Wait for the HTTP server to be ready
   const serverReady = await waitForHttpServer();
   if (!serverReady) {
@@ -232,34 +234,30 @@ export async function startMcpServer() {
    * MCP Tool: listAvatarExpressions
    * Returns a list of all available avatar expressions.
    */
-  mcpServer.tool(
-    'listAvatarExpressions',
-    {},
-    async () => {
-      try {
-        const expressions = await makeRequest('/api/expressions');
-        const expressionNames = expressions.map((exp: any) => exp.name).join(', ');
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Available expressions: ${expressionNames}`,
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Failed to list expressions: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            },
-          ],
-        };
-      }
+  mcpServer.tool('listAvatarExpressions', {}, async () => {
+    try {
+      const expressions = await makeRequest('/api/expressions');
+      const expressionNames = expressions.map((exp: any) => exp.name).join(', ');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Available expressions: ${expressionNames}`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to list expressions: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          },
+        ],
+      };
     }
-  );
+  });
 
   /**
    * MCP Tool: setBatchExpressions
@@ -335,60 +333,53 @@ export async function startMcpServer() {
    * MCP Tool: getAvatarStatus
    * Gets the current status of the avatar server.
    */
-  mcpServer.tool(
-    'getAvatarStatus',
-    {},
-    async () => {
-      try {
-        const status = await makeRequest('/api/status');
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Avatar server status: ${status.status}\nCurrent expression: ${status.currentExpression}\nBatch active: ${status.batchActive}\n\nWeb interface: ${SERVER_CONFIG.baseUrl}\nFor OBS Browser Source, use: ${SERVER_CONFIG.baseUrl}`,
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Failed to get avatar status: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            },
-          ],
-        };
-      }
+  mcpServer.tool('getAvatarStatus', {}, async () => {
+    try {
+      const status = await makeRequest('/api/status');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Avatar server status: ${status.status}\nCurrent expression: ${status.currentExpression}\nBatch active: ${status.batchActive}\n\nWeb interface: ${SERVER_CONFIG.baseUrl}\nFor OBS Browser Source, use: ${SERVER_CONFIG.baseUrl}`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to get avatar status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          },
+        ],
+      };
     }
-  );
+  });
 
   /**
    * MCP Tool: getAvatarWebInterface
    * Returns the URL for the web interface and OBS setup instructions.
    */
-  mcpServer.tool(
-    'getAvatarWebInterface',
-    {},
-    async () => {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `RustyButter Avatar Web Interface\n\n` +
-                  `🌐 Web Interface URL: ${SERVER_CONFIG.baseUrl}\n` +
-                  `📺 OBS Browser Source URL: ${SERVER_CONFIG.baseUrl}\n\n` +
-                  `Setup for OBS:\n` +
-                  `1. Add a Browser Source in OBS\n` +
-                  `2. Set URL to: ${SERVER_CONFIG.baseUrl}\n` +
-                  `3. Set Width: 800, Height: 600 (or as needed)\n` +
-                  `4. Check "Refresh browser when scene becomes active"\n\n` +
-                  `The avatar will automatically update when you use the MCP tools to change expressions!`,
-          },
-        ],
-      };
-    }
-  );
+  mcpServer.tool('getAvatarWebInterface', {}, async () => {
+    return {
+      content: [
+        {
+          type: 'text',
+          text:
+            `RustyButter Avatar Web Interface\n\n` +
+            `🌐 Web Interface URL: ${SERVER_CONFIG.baseUrl}\n` +
+            `📺 OBS Browser Source URL: ${SERVER_CONFIG.baseUrl}\n\n` +
+            `Setup for OBS:\n` +
+            `1. Add a Browser Source in OBS\n` +
+            `2. Set URL to: ${SERVER_CONFIG.baseUrl}\n` +
+            `3. Set Width: 800, Height: 600 (or as needed)\n` +
+            `4. Check "Refresh browser when scene becomes active"\n\n` +
+            `The avatar will automatically update when you use the MCP tools to change expressions!`,
+        },
+      ],
+    };
+  });
 
   /**
    * Connect the MCP server using stdio transport.
@@ -400,7 +391,9 @@ export async function startMcpServer() {
     .connect(transport)
     .then(() => {
       console.error(`[MCP] Server connected and ready for AI tool calls`);
-      console.error(`[MCP] Available tools: setAvatarExpression, listAvatarExpressions, setBatchExpressions, getAvatarStatus, getAvatarWebInterface`);
+      console.error(
+        `[MCP] Available tools: setAvatarExpression, listAvatarExpressions, setBatchExpressions, getAvatarStatus, getAvatarWebInterface`
+      );
     })
     .catch((err) => {
       console.error(`[MCP] Failed to connect MCP server: ${err}`);
@@ -412,14 +405,14 @@ export async function startMcpServer() {
 
   // Keep the process alive for MCP communication
   process.stdin.resume();
-  
+
   // Handle process termination gracefully
   process.on('SIGINT', () => {
     console.error('[MCP] Received SIGINT, shutting down gracefully...');
     stopHttpServer();
     process.exit(0);
   });
-  
+
   process.on('SIGTERM', () => {
     console.error('[MCP] Received SIGTERM, shutting down gracefully...');
     stopHttpServer();

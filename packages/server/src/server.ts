@@ -1,11 +1,11 @@
 /**
  * @fileoverview RustyButter Avatar HTTP Server
- * 
+ *
  * This module provides the HTTP API server for the avatar system.
  * It manages avatar state and serves both the web client and API endpoints.
  * The server can be accessed by both the web client (for polling) and
  * the MCP server (for state updates).
- * 
+ *
  * @author CodingButter
  * @version 1.0.5
  */
@@ -19,7 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Initialize and start the HTTP server for avatar control.
- * 
+ *
  * @function startHttpServer
  * @param {number} port - Port number to listen on
  * @returns {void}
@@ -102,7 +102,7 @@ export function startHttpServer(port: number = 3000) {
   /**
    * API endpoint to get the current avatar expression and state.
    * Used by the client for polling updates.
-   * 
+   *
    * @route GET /api/current-expression
    */
   app.get('/api/current-expression', (_req, res) => {
@@ -137,7 +137,7 @@ export function startHttpServer(port: number = 3000) {
   /**
    * API endpoint to set avatar expression.
    * Used by both manual testing and MCP server.
-   * 
+   *
    * @route POST /api/set-expression
    */
   app.post('/api/set-expression', (req, res) => {
@@ -172,7 +172,7 @@ export function startHttpServer(port: number = 3000) {
     }
 
     console.log(`[Server] Expression set to: ${name}`);
-    
+
     return res.json({
       success: true,
       expression: name,
@@ -183,7 +183,7 @@ export function startHttpServer(port: number = 3000) {
   /**
    * API endpoint to set batch expressions.
    * Used by MCP server for animated sequences.
-   * 
+   *
    * @route POST /api/set-batch-expressions
    */
   app.post('/api/set-batch-expressions', (req, res) => {
@@ -236,7 +236,7 @@ export function startHttpServer(port: number = 3000) {
     };
 
     console.log(`[Server] Batch expressions set with ${validActions.length} actions`);
-    
+
     return res.json({
       success: true,
       batchId: batchExpressionsState.batchId,
@@ -247,7 +247,7 @@ export function startHttpServer(port: number = 3000) {
 
   /**
    * API endpoint to get all available expressions.
-   * 
+   *
    * @route GET /api/expressions
    */
   app.get('/api/expressions', (_req, res) => {
@@ -257,7 +257,7 @@ export function startHttpServer(port: number = 3000) {
   /**
    * API endpoint to get server status.
    * Useful for health checks.
-   * 
+   *
    * @route GET /api/status
    */
   app.get('/api/status', (_req, res) => {
@@ -272,10 +272,12 @@ export function startHttpServer(port: number = 3000) {
   /**
    * Global error handling middleware.
    */
-  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error(`[Server Error] ${err.stack || err.message || err}`);
-    res.status(500).json({ error: 'Server error', message: err.message });
-  });
+  app.use(
+    (err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      console.error(`[Server Error] ${err.stack || err.message || err}`);
+      res.status(500).json({ error: 'Server error', message: err.message });
+    }
+  );
 
   /**
    * Start the Express HTTP server.

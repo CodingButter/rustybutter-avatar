@@ -1,9 +1,9 @@
 /**
  * @fileoverview TypeScript type definitions for RustyButter Avatar Server
- * 
+ *
  * This file contains all the core TypeScript interfaces and types used
  * throughout the RustyButter Avatar system for type safety and documentation.
- * 
+ *
  * @author CodingButter
  * @version 1.0.5
  */
@@ -12,7 +12,7 @@
  * Represents a single avatar expression with its metadata.
  * Each expression corresponds to an image file and contains descriptive information
  * to help LLMs understand when and how to use the expression.
- * 
+ *
  * @interface Expression
  * @example
  * {
@@ -37,7 +37,7 @@ export interface Expression {
  * Represents the visual positioning and transformation state of the avatar.
  * Controls how the avatar appears on screen including direction, position,
  * rotation, and scale transformations.
- * 
+ *
  * @interface AvatarState
  * @example
  * {
@@ -65,7 +65,7 @@ export interface AvatarState {
  * Represents a single action in a batch expression sequence.
  * Extends AvatarState to include the expression name and display duration.
  * Used for creating animated sequences of expressions with timing control.
- * 
+ *
  * @interface ExpressionAction
  * @extends AvatarState
  * @example
@@ -90,7 +90,7 @@ export interface ExpressionAction extends AvatarState {
  * Represents a sequence of expressions to be played as an animation.
  * Supports looping, randomization, and contains metadata for tracking.
  * Used for creating complex avatar animations and emotional sequences.
- * 
+ *
  * @interface BatchExpressions
  * @example
  * {

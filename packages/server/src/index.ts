@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
  * @fileoverview Entry point for the RustyButter Avatar HTTP Server
- * 
+ *
  * This script starts the HTTP server that manages avatar state
  * and serves the web client. It runs independently from the MCP server.
- * 
+ *
  * Usage: rustybutter-avatar-server [--port PORT]
- * 
+ *
  * @author CodingButter
  * @version 1.0.5
  */
@@ -27,7 +27,7 @@ function killExistingInstances(port: number) {
       console.log(`[Server] Killed processes using port ${port}: ${pids}`);
       execSync('sleep 1');
     }
-  } catch (error) {
+  } catch {
     // No processes found using the port
   }
 }
